@@ -1,20 +1,29 @@
 version: 2.1
 jobs:
-  build: # runs not using Workflows must have a `build` job as entry point
+  build:
     working_directory: ~/repo
-    docker: # run the steps with Docker
+    docker:
       - image: circleci/node:10.16.3-browsers
         environment:
           CHROME_BIN: /usr/bin/google-chrome
-
-    steps: # a collection of executable commands
+    steps:
       - checkout
-      - restore_cache: # special step to restore the dependency cache
+      - setup_remote_docker
+      - restore_cache:
           key: dependency-cache-{{ checksum "package-lock.json" }}
       - run: yarn install
-      - save_cache: # special step to save the dependency cache
+      - save_cache:
           key: dependency-cache-{{ checksum "package-lock.json" }}
           paths:
             - ./node_modules
       - run: yarn ng build --prod
       - run: yarn ng test --watch=false --progress=false --browsers=ChromeHeadlessCI
+      - run:
+          command: |
+            docker build -t tbaum.azurecr.io/hello:1.0.1 .
+      - run:
+          command: |
+            docker login --username $DOCKER_USER --password $DOCKER_PASS tbaum.azurecr.io
+      - run:
+          command: |
+            docker push tbaum.azurecr.io/hello:1.0.1
